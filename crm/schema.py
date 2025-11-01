@@ -2,6 +2,7 @@ import graphene
 from graphene_django import DjangoObjectType
 from graphene_django.filter import DjangoFilterConnectionField
 from .models import Customer, Product, Order
+from crm.models import Product
 import re
 from django.core.exceptions import ValidationError
 from decimal import Decimal
@@ -362,6 +363,35 @@ class CreateOrder(graphene.Mutation):
                 message=f"An error occurred: {str(e)}",
                 success=False
             )
+        
+class UpdateLowStockProducts(graphene.Mutation):
+    updated_count = graphene.Int()
+    message = graphene.String()
+    success = graphene.Boolean()
+
+    def mutate(self, info):
+        try:
+            # Find products with stock less than 10
+            low_stock_products = Product.objects.filter(stock__lt=10)
+            count = low_stock_products.count()
+            for product in low_stock_products:
+                product.stock += 10  # Replenish stock by 20 units
+                product.save()
+            
+            return UpdateLowStockProducts(
+                updated_product_list=low_stock_products,
+                updated_count=count,
+                message=f"Updated {count} low stock products.",
+                success=True
+            )
+        except Exception as e:
+            return UpdateLowStockProducts(
+                updated_count=0,
+                message=f"An error occurred: {str(e)}",
+                success=False
+            )
+        
+# =================== Query class ====================
 
 class Query(graphene.ObjectType):
     # Filtered Queries
